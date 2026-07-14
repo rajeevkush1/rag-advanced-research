@@ -27,7 +27,7 @@ services:
     ports:
       - "11435:11434"
     volumes:
-      - C:\Users\rajee\.ollama:/root/.ollama
+      - ${OLLAMA_VOLUME:-ollama_storage}:/root/.ollama
     # If running with GPU support (NVIDIA), uncomment the lines below:
     # deploy:
     #   resources:
@@ -80,3 +80,4 @@ services:
 
 volumes:
   qdrant_storage:
+  ollama_storage:
