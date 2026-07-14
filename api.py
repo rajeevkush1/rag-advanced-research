@@ -612,6 +612,56 @@ def list_documents():
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+@app.delete("/documents/{filename}", tags=["System"])
+def delete_document(filename: str):
+    """Delete all chunks for a specific document from Qdrant and delete its local files."""
+    from qdrant_client import QdrantClient
+    from qdrant_client.models import Filter, FieldCondition, MatchValue
+    try:
+        client = QdrantClient(url=config.QDRANT_URL)
+        # 1. Delete points matching the filename source from Qdrant
+        client.delete(
+            collection_name=config.COLLECTION_NAME,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(
+                        key="source",
+                        match=MatchValue(value=filename)
+                    )
+                ]
+            )
+        )
+        # 2. Delete local PDF file
+        pdf_path = config.PDF_DIR / filename
+        pdf_path.unlink(missing_ok=True)
+        # 3. Delete parsed markdown cache file
+        parsed_path = config.PARSED_DIR / f"{filename}.mmd"
+        parsed_path.unlink(missing_ok=True)
+        return {"status": "deleted", "filename": filename}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.delete("/documents", tags=["System"])
+def delete_all_documents():
+    """Clear all documents in the Qdrant collection and delete all local PDFs/caches."""
+    from qdrant_client import QdrantClient
+    try:
+        client = QdrantClient(url=config.QDRANT_URL)
+        existing = {c.name for c in client.get_collections().collections}
+        if config.COLLECTION_NAME in existing:
+            client.delete_collection(config.COLLECTION_NAME)
+        # Clear local files
+        for f in config.PDF_DIR.glob("*.pdf"):
+            f.unlink(missing_ok=True)
+        for f in config.PARSED_DIR.glob("*.mmd"):
+            f.unlink(missing_ok=True)
+        return {"status": "cleared_all"}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+
 @app.get("/documents/{filename}/chunks", tags=["System"])
 def list_document_chunks(filename: str):
     """Retrieve all raw chunks for a specific ingested document."""
