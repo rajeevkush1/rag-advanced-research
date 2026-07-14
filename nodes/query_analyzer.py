@@ -210,10 +210,16 @@ def analyze_query(
             "needs_context":   True,
         }
 
-    # Force needs_context to True on retries so retrieval loop is not cut short
-    needs_context = bool(result.get("needs_context", True))
-    if attempt > 0:
+    # Force needs_context to True unless this is a simple conversational greeting
+    conversational_keywords = ["hi", "hello", "hey", "thanks", "thank", "bye", "good morning", "good afternoon", "welcome"]
+    q_clean = query.strip().lower()
+    is_greeting = len(q_clean.split()) <= 3 and any(w in q_clean for w in conversational_keywords)
+
+    if attempt > 0 or not is_greeting:
         needs_context = True
+    else:
+        needs_context = False
+
 
     return {
         "rewritten_query": str(result.get("rewritten_query", query)),
