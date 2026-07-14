@@ -829,6 +829,89 @@
       border: none;
       padding: 0;
     }
+
+    /* Mobile Responsiveness Styles */
+    .mobile-header-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-main);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 8px;
+      margin-right: 12px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+
+    .mobile-header-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      z-index: 95;
+    }
+
+    @media (max-width: 768px) {
+      .app-container {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 100;
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .sidebar-backdrop.show {
+        display: block;
+      }
+
+      .mobile-header-btn {
+        display: flex;
+      }
+      
+      .topbar {
+        padding: 0 16px;
+      }
+      
+      .messages-area {
+        padding: 16px;
+      }
+      
+      .input-bar {
+        padding: 16px;
+      }
+      
+      .welcome-title {
+        font-size: 20px;
+      }
+      
+      .welcome-subtitle {
+        font-size: 13px;
+      }
+      
+      .quick-start-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -842,7 +925,12 @@
       const [messages, setMessages] = useState([]);
       const [input, setInput] = useState("");
       const [threadId, setThreadId] = useState(() => {
-        return localStorage.getItem("rag_thread_id") || "default-thread";
+        let id = localStorage.getItem("rag_thread_id");
+        if (!id || id === "default-thread") {
+          id = `thread-${Math.random().toString(36).substring(2, 10)}`;
+          localStorage.setItem("rag_thread_id", id);
+        }
+        return id;
       });
       const [threads, setThreads] = useState([]);
       const [activeNode, setActiveNode] = useState("");
@@ -856,6 +944,7 @@
       const [documents, setDocuments] = useState([]);
       const [selectedDoc, setSelectedDoc] = useState(null); // { filename: '', chunks: [] }
       const [viewingChunks, setViewingChunks] = useState(false);
+      const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
       const messagesEndRef = useRef(null);
       const fileInputRef = useRef(null);
@@ -908,6 +997,7 @@
       };
 
       const viewDocumentChunks = async (filename) => {
+        setIsSidebarOpen(false);
         try {
           const res = await fetch(`/documents/${encodeURIComponent(filename)}/chunks`);
           const data = await res.json();
@@ -1101,11 +1191,13 @@
         localStorage.setItem("rag_thread_id", newId);
         setThreadId(newId);
         setMessages([]);
+        setIsSidebarOpen(false);
       };
 
       const selectThread = (id) => {
         localStorage.setItem("rag_thread_id", id);
         setThreadId(id);
+        setIsSidebarOpen(false);
       };
 
       const deleteThread = async (id, e) => {
@@ -1193,13 +1285,29 @@
 
       return (
         <div className="app-container">
+          {/* Sidebar Backdrop overlay for mobile screens */}
+          <div 
+            className={`sidebar-backdrop ${isSidebarOpen ? 'show' : ''}`} 
+            onClick={() => setIsSidebarOpen(false)}
+          ></div>
+          
           {/* Sidebar */}
-          <div className="sidebar">
-            <div className="logo-container">
-              <div className="logo-icon">
-                <i className="fa-solid fa-graduation-cap text-white"></i>
+          <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
+            <div className="logo-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className="logo-icon">
+                  <i className="fa-solid fa-graduation-cap text-white"></i>
+                </div>
+                <div className="logo-text">ResearchRAG</div>
               </div>
-              <div className="logo-text">ResearchRAG</div>
+              <button 
+                className="mobile-header-btn" 
+                onClick={() => setIsSidebarOpen(false)}
+                style={{ margin: 0, padding: '4px 8px' }}
+                title="Close Sidebar"
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
             </div>
 
             <div className="section-title">Ingest Research Papers</div>
@@ -1343,9 +1451,14 @@
           <div className="chat-container">
             {/* Top Bar */}
             <div className="topbar">
-              <div>
-                <div className="topbar-title">Advanced Research Assistant</div>
-                <div className="topbar-subtitle">Active Session: {threadId}</div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <button className="mobile-header-btn" onClick={() => setIsSidebarOpen(true)} title="Open Sidebar">
+                  <i className="fa-solid fa-bars"></i>
+                </button>
+                <div>
+                  <div className="topbar-title">Advanced Research Assistant</div>
+                  <div className="topbar-subtitle">Active Session: {threadId}</div>
+                </div>
               </div>
               <div className="system-health">
                 <div className={`health-indicator`} style={{
